@@ -32,9 +32,12 @@
   function getCardStyle(cardIndex, activeIndex, totalItems) {
     if (totalItems === 0) return `opacity: 0; pointer-events: none;`;
 
-    const slotHeightVh = 90; // Effective height for positioning each card slot vertically (matches card height)
-    const visibleWindow = 1; // Number of cards to show/style above and below the active one (e.g., 1 means active + 1 above + 1 below)
-    const maxRotationX = 35; // Max X-axis rotation for cards at the edge of the visible window (degrees)
+    const cardHeightVh = 25; // New card height
+    const cardMarginVh = 5; // Vertical margin between cards
+    const slotOffsetVh = cardHeightVh + cardMarginVh;
+
+    const visibleWindow = 2; // Number of cards to show/style above and below the active one
+    const maxRotationZ = 20; // Max Z-axis rotation for cards at the edge of the visible window (degrees)
 
     let diff = cardIndex - activeIndex;
     // Normalize diff for circular array behavior
@@ -42,49 +45,37 @@
       diff = diff > 0 ? diff - totalItems : diff + totalItems;
     }
 
-    const currentTranslateY = diff * slotHeightVh;
-    let currentRotateX = 0;
+    const currentTranslateY = diff * slotOffsetVh; // translateY based on new slot size
+    let currentRotateZ = 0;
     let currentScale = 1;
     let currentOpacity = 0;
     let currentZIndex = 0;
     let currentPointerEvents = 'none';
 
     if (diff === 0) { // Current card (center of viewport)
-        currentRotateX = 0;
+        currentRotateZ = 0;
         currentScale = 1;
         currentOpacity = 1;
         currentZIndex = visibleWindow + 2; // Highest z-index
         currentPointerEvents = 'auto';
     } else if (Math.abs(diff) <= visibleWindow) { // Visible adjacent cards
         // Rotation is proportional to how far off-center the card is (diff)
-        // Positive diff (below center) = positive rotateX (top edge towards viewer)
-        // Negative diff (above center) = negative rotateX (bottom edge towards viewer)
-        currentRotateX = (diff / (visibleWindow + 0.1)) * maxRotationX; // +0.1 to ensure diff=0 gives 0 rotation
-        currentScale = 1 - (Math.abs(diff) * 0.03); // Slightly scale down cards further away
-        currentOpacity = 1 - (Math.abs(diff) / (visibleWindow + 0.7)); // Fade out cards further away (+0.7 for smoother fade)
+        currentRotateZ = (-diff / (visibleWindow + 0.1)) * maxRotationZ;
+        currentScale = 1 - (Math.abs(diff) * 0.05); // Slightly scale down cards further away
+        currentOpacity = 1 - (Math.abs(diff) / (visibleWindow + 0.5)); // Fade out cards further away
         currentZIndex = visibleWindow - Math.abs(diff) + 1;
         
-        // Further reduce opacity for cards rotated significantly, enhancing the "depth"
-        if (Math.abs(currentRotateX) > maxRotationX * 0.8) { 
-             currentOpacity *= 0.8;
+        if (Math.abs(currentRotateZ) > maxRotationZ * 0.9) { 
+             currentOpacity *= 0.7; // Further fade cards at extreme angles
         }
     } else { // Cards outside the immediate visible window
         currentOpacity = 0; // Make them invisible
         currentZIndex = 0;
-        // Position them far off and rotate sharply to be out of view
-        currentRotateX = diff > 0 ? 60 : -60; // Steeper angle for far cards
-        currentScale = 0.85; // Scale them down more
+        currentRotateZ = diff > 0 ? -maxRotationZ * 1.5 : maxRotationZ * 1.5; // Rotate them more sharply out of view
+        currentScale = 0.80; // Scale them down more
     }
     
-    // Final check to hide cards rotated too extremely (e.g., edge-on or facing away)
-    if (Math.abs(currentRotateX) >= 80) {
-        currentOpacity = Math.min(currentOpacity, 0.05); // Keep very faint or hide
-    }
-    if (Math.abs(currentRotateX) >= 90) { // Definitely hide if 90 degrees or more
-        currentOpacity = 0; 
-    }
-
-    return `transform: translateY(${currentTranslateY}vh) rotateX(${currentRotateX}deg) scale(${currentScale}); opacity: ${currentOpacity}; z-index: ${currentZIndex}; pointer-events: ${currentPointerEvents};`;
+    return `transform: translateY(${currentTranslateY}vh) rotate(${currentRotateZ}deg) scale(${currentScale}); opacity: ${currentOpacity}; z-index: ${currentZIndex}; pointer-events: ${currentPointerEvents};`;
   }
 </script>
 
@@ -121,23 +112,24 @@
 
   .card {
     position: absolute;
-    top: 5vh; /* Add some margin from top/bottom */
-    left: 5vw; /* Add some margin from left/right */
+    /* Centering the slot for the active card (diff=0, translateY=0) */
+    top: calc(50vh - 12.5vh); /* Assumes card height is 25vh. (50vh - half_card_height) */
+    left: 5vw;
     width: 90vw;
-    height: 90vh;
+    height: 25vh; /* New smaller height */
     display: flex;
     background-color: #ffffff;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
-    border-radius: 10px;
-    transform-origin: 0% 50%; /* Rotate around the card's own left edge, vertically centered */
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25); /* Adjusted shadow */
+    border-radius: 8px; /* Slightly smaller radius */
+    transform-origin: -150vw 50%; /* Pivot far to the left, adjust as needed. */
     transition: transform 0.7s cubic-bezier(0.3, 1, 0.3, 1), opacity 0.6s ease-out;
     will-change: transform, opacity;
-    overflow: hidden; /* Ensure content within card respects border-radius */
+    overflow: hidden;
   }
 
   .card-image {
-    flex: 0 0 45%; /* Image takes 45% width */
-    max-width: 45%;
+    flex: 0 0 30%; /* Image takes 30% width */
+    max-width: 30%;
     height: 100%;
     overflow: hidden;
   }
@@ -150,9 +142,9 @@
   }
 
   .card-content {
-    flex: 1; /* Text takes remaining space */
-    padding: 30px 40px;
-    overflow-y: auto; /* Scroll if content is too long */
+    flex: 1;
+    padding: 20px 25px; /* Adjusted padding */
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -161,14 +153,14 @@
 
   .card-content h2 {
     margin-top: 0;
-    font-size: 2.2em;
+    font-size: 1.6em; /* Adjusted for smaller card */
     color: #2c3e50;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
   }
 
   .card-content p {
-    font-size: 1.1em;
-    line-height: 1.7;
+    font-size: 0.9em; /* Adjusted for smaller card */
+    line-height: 1.5; /* Adjusted line height */
     color: #555;
   }
 
@@ -186,32 +178,33 @@
   @media (max-width: 768px) {
     .card {
       flex-direction: column; /* Stack image and text on mobile */
-      top: 2.5vh;
+      height: 30vh; /* Or 'auto' if content varies a lot, with min/max-height */
+      top: calc(50vh - 15vh); /* 50vh - (30vh/2) */
       left: 2.5vw;
       width: 95vw;
-      height: 95vh;
+      transform-origin: -100vw 50%; /* Less extreme origin for mobile if needed */
     }
 
     .card-image {
-      flex: 0 0 40vh; /* Image takes fixed height portion */
+      flex: 0 0 10vh; /* Fixed height for image part on mobile when stacked */
       max-width: 100%;
       width: 100%;
-      height: 40vh; /* Explicit height */
+      height: 10vh; 
     }
 
     .card-content {
-      padding: 20px;
-      flex: 1; /* Takes remaining height */
+      padding: 15px; /* Adjusted padding for mobile */
+      flex: 1; 
     }
 
     .card-content h2 {
-      font-size: 1.6em;
-      margin-bottom: 10px;
+      font-size: 1.3em; /* Adjusted for mobile */
+      margin-bottom: 8px;
     }
 
     .card-content p {
-      font-size: 0.95em;
-      line-height: 1.6;
+      font-size: 0.85em; /* Adjusted for mobile */
+      line-height: 1.4;
     }
   }
 </style>
