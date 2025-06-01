@@ -30,39 +30,61 @@
   }
 
   function getCardStyle(cardIndex, activeIndex, totalItems) {
-    const rotationAngle = 65; // Degrees for cards not in focus
-    const outTranslateX = '100%'; 
-    const inTranslateX = '-100%';
-    
-    let style = {
-      transform: `rotateY(0deg) translateX(200%)`, // Default to far right, invisible
-      opacity: 0,
-      zIndex: 0,
-      pointerEvents: 'none'
-    };
-
     if (totalItems === 0) return `opacity: 0; pointer-events: none;`;
 
-    if (cardIndex === activeIndex) {
-      // Current card
-      style.transform = 'rotateY(0deg) translateX(0%)';
-      style.opacity = 1;
-      style.zIndex = 2;
-      style.pointerEvents = 'auto';
-    } else if (cardIndex === (activeIndex + 1 + totalItems) % totalItems) {
-      // Next card (visually comes from left)
-      style.transform = `rotateY(-${rotationAngle}deg) translateX(${inTranslateX})`;
-      style.opacity = 0; // Hidden, ready to animate in
-      style.zIndex = 1; // Behind current
-    } else if (cardIndex === (activeIndex - 1 + totalItems) % totalItems) {
-      // Previous card (visually goes to right)
-      style.transform = `rotateY(${rotationAngle}deg) translateX(${outTranslateX})`;
-      style.opacity = 0; // Hidden, animated out
-      style.zIndex = 1; // Behind current
-    }
-    // Other cards remain far out and transparent
+    const slotHeightVh = 90; // Effective height for positioning each card slot vertically (matches card height)
+    const visibleWindow = 1; // Number of cards to show/style above and below the active one (e.g., 1 means active + 1 above + 1 below)
+    const maxRotationX = 35; // Max X-axis rotation for cards at the edge of the visible window (degrees)
 
-    return `transform: ${style.transform}; opacity: ${style.opacity}; z-index: ${style.zIndex}; pointer-events: ${style.pointerEvents};`;
+    let diff = cardIndex - activeIndex;
+    // Normalize diff for circular array behavior
+    if (Math.abs(diff) > totalItems / 2) {
+      diff = diff > 0 ? diff - totalItems : diff + totalItems;
+    }
+
+    const currentTranslateY = diff * slotHeightVh;
+    let currentRotateX = 0;
+    let currentScale = 1;
+    let currentOpacity = 0;
+    let currentZIndex = 0;
+    let currentPointerEvents = 'none';
+
+    if (diff === 0) { // Current card (center of viewport)
+        currentRotateX = 0;
+        currentScale = 1;
+        currentOpacity = 1;
+        currentZIndex = visibleWindow + 2; // Highest z-index
+        currentPointerEvents = 'auto';
+    } else if (Math.abs(diff) <= visibleWindow) { // Visible adjacent cards
+        // Rotation is proportional to how far off-center the card is (diff)
+        // Positive diff (below center) = positive rotateX (top edge towards viewer)
+        // Negative diff (above center) = negative rotateX (bottom edge towards viewer)
+        currentRotateX = (diff / (visibleWindow + 0.1)) * maxRotationX; // +0.1 to ensure diff=0 gives 0 rotation
+        currentScale = 1 - (Math.abs(diff) * 0.03); // Slightly scale down cards further away
+        currentOpacity = 1 - (Math.abs(diff) / (visibleWindow + 0.7)); // Fade out cards further away (+0.7 for smoother fade)
+        currentZIndex = visibleWindow - Math.abs(diff) + 1;
+        
+        // Further reduce opacity for cards rotated significantly, enhancing the "depth"
+        if (Math.abs(currentRotateX) > maxRotationX * 0.8) { 
+             currentOpacity *= 0.8;
+        }
+    } else { // Cards outside the immediate visible window
+        currentOpacity = 0; // Make them invisible
+        currentZIndex = 0;
+        // Position them far off and rotate sharply to be out of view
+        currentRotateX = diff > 0 ? 60 : -60; // Steeper angle for far cards
+        currentScale = 0.85; // Scale them down more
+    }
+    
+    // Final check to hide cards rotated too extremely (e.g., edge-on or facing away)
+    if (Math.abs(currentRotateX) >= 80) {
+        currentOpacity = Math.min(currentOpacity, 0.05); // Keep very faint or hide
+    }
+    if (Math.abs(currentRotateX) >= 90) { // Definitely hide if 90 degrees or more
+        currentOpacity = 0; 
+    }
+
+    return `transform: translateY(${currentTranslateY}vh) rotateX(${currentRotateX}deg) scale(${currentScale}); opacity: ${currentOpacity}; z-index: ${currentZIndex}; pointer-events: ${currentPointerEvents};`;
   }
 </script>
 
@@ -92,6 +114,7 @@
     height: 100vh;
     position: relative;
     perspective: 1800px; /* Increased perspective for a more pronounced 3D effect */
+    perspective-origin: 0% 50%; /* Vanishing point to the left */
     overflow: hidden;
     background-color: #2c3e50; /* Match body background or choose another */
   }
@@ -106,7 +129,7 @@
     background-color: #ffffff;
     box-shadow: 0 15px 35px rgba(0,0,0,0.3);
     border-radius: 10px;
-    transform-origin: 0% 50%; /* Rotate around left edge, vertically centered */
+    transform-origin: 0% 50%; /* Rotate around the card's own left edge, vertically centered */
     transition: transform 0.7s cubic-bezier(0.3, 1, 0.3, 1), opacity 0.6s ease-out;
     will-change: transform, opacity;
     overflow: hidden; /* Ensure content within card respects border-radius */
