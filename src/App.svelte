@@ -1,6 +1,7 @@
 <script>
   import { tweened } from 'svelte/motion';
   import { quintOut } from 'svelte/easing';
+  import { onMount, onDestroy } from 'svelte';
 
   let items = [
     { id: 0, title: 'Serene Mountain Valley', imageUrl: 'https://picsum.photos/seed/mval1/600/800', description: 'A breathtaking view of a lush green valley nestled between towering snow-capped mountains, under a clear blue sky. Perfect for hiking and nature photography.' },
@@ -17,6 +18,36 @@
   const displayIndex = tweened(currentIndex, {
     duration: animationDuration,
     easing: quintOut
+  });
+
+  let isMobile = false;
+  let mediaQueryList = null;
+
+  const handleMediaQueryChange = (event) => {
+    isMobile = event.matches;
+  };
+
+  onMount(() => {
+    if (typeof window !== 'undefined') {
+      mediaQueryList = window.matchMedia('(max-width: 768px)');
+      isMobile = mediaQueryList.matches;
+      // Svelte 4+ uses addEventListener, older might use addListener
+      if (mediaQueryList.addEventListener) {
+        mediaQueryList.addEventListener('change', handleMediaQueryChange);
+      } else if (mediaQueryList.addListener) { // For older browser compatibility
+        mediaQueryList.addListener(handleMediaQueryChange);
+      }
+    }
+  });
+
+  onDestroy(() => {
+    if (mediaQueryList) {
+      if (mediaQueryList.removeEventListener) {
+        mediaQueryList.removeEventListener('change', handleMediaQueryChange);
+      } else if (mediaQueryList.removeListener) { // For older browser compatibility
+        mediaQueryList.removeListener(handleMediaQueryChange);
+      }
+    }
   });
 
   // Reactive statement to update tween target when currentIndex changes
@@ -36,29 +67,34 @@
 
     if (event.deltaY > 0) {
       // Scroll down
-      currentIndex = (currentIndex + 1) % items.length;
+      currentIndex = Math.min(currentIndex + 1, items.length - 1);
     } else {
       // Scroll up
-      currentIndex = (currentIndex - 1 + items.length) % items.length;
+      currentIndex = Math.max(currentIndex - 1, 0);
     }
     // The reactive statement above will trigger displayIndex.set()
   }
 
-  function getCardStyle(cardIndex, activeDisplayIndex, totalItems) {
+  function getCardStyle(cardIndex, activeDisplayIndex, totalItems, isMobileValue) {
     if (totalItems === 0) return `opacity: 0; pointer-events: none;`;
 
-    const cardHeightVh = 25;
-    const cardMarginVh = 5;
-    const slotOffsetVh = cardHeightVh + cardMarginVh;
+    const desktopCardHeightVh = 25;
+    const mobileCardHeightVh = 30; // As per CSS media query
+    
+    const desktopCardMarginVh = 0;
+    const mobileCardMarginVh = 0;
+    const cardMarginVh = isMobileValue ? mobileCardMarginVh : desktopCardMarginVh;
+
+    const currentCardHeightVh = isMobileValue ? mobileCardHeightVh : desktopCardHeightVh;
+    const slotOffsetVh = currentCardHeightVh + cardMarginVh;
 
     const visibleWindow = 2; // Number of cards to show/style above and below the active one
-    const maxRotationZ = 20; // Max Z-axis rotation
+    const desktopMaxRotationZ = 10; // Further reduced for desktop
+    const mobileMaxRotationZ = 5; 
+    const maxRotationZ = isMobileValue ? mobileMaxRotationZ : desktopMaxRotationZ;
 
     let diff = cardIndex - activeDisplayIndex; // activeDisplayIndex is now a float
-    // Normalize diff for circular array behavior
-    if (Math.abs(diff) > totalItems / 2) {
-      diff = diff > 0 ? diff - totalItems : diff + totalItems;
-    }
+    // Normalization for circular array removed as looping is disabled.
 
     const currentTranslateY = diff * slotOffsetVh;
     const absDiff = Math.abs(diff);
@@ -67,7 +103,7 @@
 
     // Base calculations for cards within the "active zone"
     if (absDiff <= visibleWindow + 0.5) { // +0.5 to allow smooth transition out of view
-        currentRotateZ = (-diff / (visibleWindow + 0.1)) * maxRotationZ;
+        currentRotateZ = (diff / (visibleWindow + 0.1)) * maxRotationZ;
         currentScale = 1 - (absDiff * 0.05);
         currentOpacity = 1 - (absDiff / (visibleWindow + 0.5));
 
@@ -113,7 +149,7 @@
 <div class="app-container" on:wheel={handleWheel}>
   {#if items.length > 0}
     {#each items as item, i (item.id)}
-      <div class="card" style={getCardStyle(i, $displayIndex, items.length)}>
+      <div class="card" style={getCardStyle(i, $displayIndex, items.length, isMobile)}>
         <div class="card-image">
           <img src={item.imageUrl} alt={item.title} />
         </div>
@@ -150,7 +186,7 @@
     background-color: #ffffff;
     box-shadow: 0 10px 25px rgba(0,0,0,0.25); /* Adjusted shadow */
     border-radius: 8px; /* Slightly smaller radius */
-    transform-origin: -150vw 50%; /* Pivot far to the left, adjust as needed. */
+    transform-origin: 0% 50%; /* Pivot from card's own left edge */
     /* transition: transform 0.7s cubic-bezier(0.3, 1, 0.3, 1), opacity 0.6s ease-out; */ /* Removed: tweened store now handles smooth animation */
     will-change: transform, opacity; /* Hint for browser optimization */
     overflow: hidden;
@@ -205,13 +241,16 @@
 
   /* Responsive adjustments */
   @media (max-width: 768px) {
+    .app-container {
+      perspective-origin: 0% 50%; /* Vanishing point to the left (consistent) */
+    }
     .card {
       flex-direction: column; /* Stack image and text on mobile */
       height: 30vh; /* Or 'auto' if content varies a lot, with min/max-height */
       top: calc(50vh - 15vh); /* 50vh - (30vh/2) */
       left: 2.5vw;
       width: 95vw;
-      transform-origin: -100vw 50%; /* Less extreme origin for mobile if needed */
+      transform-origin: 0% 50%; /* Pivot from card's own left edge for mobile */
     }
 
     .card-image {
