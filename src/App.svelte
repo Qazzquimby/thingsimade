@@ -1,5 +1,7 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
+  import { flip } from 'svelte/animate';
+  import { cubicOut } from 'svelte/easing';
 
   // --- Constants and Configuration ---
   const GRID_WIDTH = 8; 
@@ -446,14 +448,11 @@
     return []; // No path found
   }
   
-  let animatingPieceIds = new Set();
-
   async function apply_mutation_path_to_display(path) {
     if (!path || path.length === 0) return;
 
-    const currentAnimatingIds = new Set(path.map(action => action.piece_id));
-    currentAnimatingIds.forEach(id => animatingPieceIds.add(id));
-    animatingPieceIds = new Set(animatingPieceIds); // Trigger Svelte update for class
+    // FLIP will handle animations based on data changes to 'pieces'
+    // No need for manual class toggling or `tick()` for this animation type.
 
     for (let i = 0; i < path.length; i++) {
         const action = path[i];
@@ -470,11 +469,6 @@
              await new Promise(resolve => setTimeout(resolve, 1000)); // Stagger subsequent steps
         }
     }
-    
-    setTimeout(() => {
-        currentAnimatingIds.forEach(id => animatingPieceIds.delete(id));
-        animatingPieceIds = new Set(animatingPieceIds); // Trigger Svelte update
-    }, 800); // Corresponds to CSS transition time
   }
 
   function performMutation() {
@@ -534,15 +528,9 @@
     perspective: 1000px;
     border-radius: 12px;
     background-color: #0f0f0f; 
-    transition: grid-column-start 0.8s cubic-bezier(0.4, 0, 0.2, 1),
-                grid-row-start 0.8s cubic-bezier(0.4, 0, 0.2, 1),
-                grid-column-end 0.8s cubic-bezier(0.4, 0, 0.2, 1),
-                grid-row-end 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     filter: drop-shadow(0 0 8px rgba(255, 0, 110, 0.25)) 
             drop-shadow(0 0 15px rgba(131, 56, 236, 0.15));
   }
-
-  /* .card.animating could be used for more specific transition states if needed */
 
   .card-inner {
     position: relative;
@@ -658,8 +646,8 @@
 <div class="grid-container" style="--grid-width: {GRID_WIDTH};">
   {#each pieces as piece (piece.key)}
     <div 
-      class="card" 
-      class:animating={animatingPieceIds.has(piece.id)}
+      class="card"
+      animate:flip={{ duration: 800, easing: cubicOut }}
       style="
         grid-column-start: {piece.x + 1}; 
         grid-row-start: {piece.y + 1}; 
