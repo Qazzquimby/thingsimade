@@ -289,10 +289,13 @@
   }
   
   function get_mutation_path_js() {
+    const initial_board_state_serialized = JSON.stringify(board); // For ensuring final state is different
+
     for (let try_attempt = 0; try_attempt < 50; try_attempt++) { // Max attempts to find a path
         let temp_pieces = JSON.parse(JSON.stringify(pieces)); // Deep copy for planning
         let temp_board = JSON.parse(JSON.stringify(board));   // Deep copy for planning
         let current_mutation_path = [];
+        let board_history_for_current_path = [JSON.stringify(temp_board)]; // Track board states for this path attempt
 
         const shrinkable_pieces_on_temp = get_shrinkable_pieces_js(temp_pieces);
         if (shrinkable_pieces_on_temp.length === 0) continue;
@@ -313,6 +316,12 @@
         temp_shrunk_piece_ref.width = chosen_shrink_details.new_w;
         temp_shrunk_piece_ref.height = chosen_shrink_details.new_h;
         _place_piece_on_board_js(temp_shrunk_piece_ref, temp_board);
+
+        let current_board_serialized_after_shrink = JSON.stringify(temp_board);
+        if (board_history_for_current_path.includes(current_board_serialized_after_shrink)) {
+            continue; // This shrink led to an already seen state in this path, try new path
+        }
+        board_history_for_current_path.push(current_board_serialized_after_shrink);
         
         current_mutation_path.push({
             action_type: 'shrink', piece_id: piece_to_shrink_on_temp.id,
@@ -341,6 +350,25 @@
                             is_immediate_reversal = true;
                         }
                     }
+
+                    // New check for translate reversal:
+                    if (!is_immediate_reversal &&
+                        fill_action.action_type === "translate" &&
+                        current_mutation_path.length > 0) {
+                        
+                        const last_action_in_path = current_mutation_path[current_mutation_path.length - 1];
+                        
+                        if (last_action_in_path.piece_id === adj_piece_on_temp.id &&
+                            (last_action_in_path.action_type === "translate" || last_action_in_path.action_type === "resize")) {
+                            // Check if the proposed translate action would move the piece back to where it was 
+                            // *before* the last_action_in_path occurred.
+                            if (fill_action.target_x === last_action_in_path.original_metrics_step.x &&
+                                fill_action.target_y === last_action_in_path.original_metrics_step.y) {
+                                is_immediate_reversal = true;
+                            }
+                        }
+                    }
+
                     if (!is_immediate_reversal) {
                         possible_fills_temp.push({ piece_id: adj_piece_on_temp.id, fill_action: fill_action });
                     }
@@ -348,25 +376,71 @@
             }
 
             if (possible_fills_temp.length === 0) { planning_succeeded = false; break; }
-            const chosen_fill_plan = possible_fills_temp[Math.floor(Math.random() * possible_fills_temp.length)];
-            
-            let temp_fill_piece_ref = getPieceById(chosen_fill_plan.piece_id, temp_pieces);
-            _clear_piece_from_board_js(temp_fill_piece_ref, temp_board);
-            temp_fill_piece_ref.x = chosen_fill_plan.fill_action.target_x;
-            temp_fill_piece_ref.y = chosen_fill_plan.fill_action.target_y;
-            temp_fill_piece_ref.width = chosen_fill_plan.fill_action.target_w;
-            temp_fill_piece_ref.height = chosen_fill_plan.fill_action.target_h;
-            _place_piece_on_board_js(temp_fill_piece_ref, temp_board);
 
+            // Shuffle possible_fills_temp to try them in a random order to find one that creates a new state
+            for (let i = possible_fills_temp.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [possible_fills_temp[i], possible_fills_temp[j]] = [possible_fills_temp[j], possible_fills_temp[i]];
+            }
+
+            let found_valid_fill_this_step = false;
+            let chosen_fill_plan_details = null; 
+            let original_metrics_for_chosen_fill;
+
+            for (const fill_option of possible_fills_temp) {
+                // Simulate this fill_option
+                let board_sim = JSON.parse(JSON.stringify(temp_board));
+                let pieces_sim = JSON.parse(JSON.stringify(temp_pieces));
+                let piece_to_fill_sim = getPieceById(fill_option.piece_id, pieces_sim);
+                
+                const current_piece_metrics_before_sim_fill = {
+                    x: piece_to_fill_sim.x, y: piece_to_fill_sim.y,
+                    w: piece_to_fill_sim.width, h: piece_to_fill_sim.height
+                };
+
+                _clear_piece_from_board_js(piece_to_fill_sim, board_sim);
+                piece_to_fill_sim.x = fill_option.fill_action.target_x;
+                piece_to_fill_sim.y = fill_option.fill_action.target_y;
+                piece_to_fill_sim.width = fill_option.fill_action.target_w;
+                piece_to_fill_sim.height = fill_option.fill_action.target_h;
+                _place_piece_on_board_js(piece_to_fill_sim, board_sim);
+
+                const board_state_after_sim_fill_serialized = JSON.stringify(board_sim);
+
+                if (!board_history_for_current_path.includes(board_state_after_sim_fill_serialized)) {
+                    // This fill is valid, select it
+                    chosen_fill_plan_details = fill_option;
+                    original_metrics_for_chosen_fill = current_piece_metrics_before_sim_fill;
+                    
+                    // Apply it to the actual temp_board and temp_pieces for the current path
+                    temp_board = board_sim;
+                    temp_pieces = pieces_sim;
+                    board_history_for_current_path.push(board_state_after_sim_fill_serialized);
+                    found_valid_fill_this_step = true;
+                    break; 
+                }
+            }
+
+            if (!found_valid_fill_this_step) {
+                planning_succeeded = false; break;
+            }
+            
+            // chosen_fill_plan is now chosen_fill_plan_details
+            // original_metrics_for_this_step is now original_metrics_for_chosen_fill
             current_mutation_path.push({
-                action_type: chosen_fill_plan.fill_action.action_type, piece_id: chosen_fill_plan.piece_id,
-                new_pos: { x: chosen_fill_plan.fill_action.target_x, y: chosen_fill_plan.fill_action.target_y },
-                new_size: { w: chosen_fill_plan.fill_action.target_w, h: chosen_fill_plan.fill_action.target_h }
+                action_type: chosen_fill_plan_details.fill_action.action_type, 
+                piece_id: chosen_fill_plan_details.piece_id,
+                original_metrics_step: original_metrics_for_chosen_fill, 
+                new_pos: { x: chosen_fill_plan_details.fill_action.target_x, y: chosen_fill_plan_details.fill_action.target_y },
+                new_size: { w: chosen_fill_plan_details.fill_action.target_w, h: chosen_fill_plan_details.fill_action.target_h }
             });
         }
 
         if (planning_succeeded && is_fully_tiled_js(temp_board)) {
-            return current_mutation_path;
+            const final_path_board_state_serialized = JSON.stringify(temp_board);
+            if (final_path_board_state_serialized !== initial_board_state_serialized) {
+                return current_mutation_path;
+            }
         }
     }
     return []; // No path found
@@ -393,7 +467,7 @@
             });
         }
         if (i < path.length -1) { // Add delay between steps if not the last step
-             await new Promise(resolve => setTimeout(resolve, 250)); // Stagger subsequent steps
+             await new Promise(resolve => setTimeout(resolve, 1000)); // Stagger subsequent steps
         }
     }
     
