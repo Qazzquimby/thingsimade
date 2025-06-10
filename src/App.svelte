@@ -1,19 +1,46 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte';
-  import {DataSet, Network} from "vis-network";
+  import {DataSet, Network} from "vis-network/standalone";
   
   let container;
   let network;
-  
+
+  type Tag = {
+    name: string
+    description: string
+  }
+
+  type Project = {
+    name: string,
+    description: string,
+    tags: string[],
+    related: string[]
+    image: string,
+
+  }
+
+  const TAG_RIVALS = {name: "Rivals of Aether", description: "Related to the pixel art platform fighter. The game has a great modding scene which I tried to support."}
+  const TAG_TOOLS = {name: "Tools I made", description: "Intended to be useful"}
+
+  const projects: Project[] = [
+      {
+        name: "Rivals Workshop Assistant",
+        description: "Probably the the biggest project I've ever made. It plugged into the editor and invisibly ran in the background, and did so many things people get bored before I can list them all. The game's language doesn't allow importing from other files, so it would inject used functions into the code as needed. It would automatically refortmat and export spritesheets every time you save. It allowed writing attack files in roughly half as many lines. Many more things. Nearly no one used it, but a few people did.",
+        image: "rivals_workshop_assistant.png",
+        tags: [TAG_RIVALS.name, TAG_TOOLS.name],
+        related: ["Rivals lib"]
+      },
+
+  ]
+
   const projectData = {
     "projects": {
       "Rivals assistant": {
-        "tags": ["Rivals of Aether", "tools I made"],
+        "tags": [TAG_RIVALS.name, TAG_TOOLS.name],
         "related": ["Rivals lib"]
       },
       "Rivals lib": {
         "tags": ["Rivals of Aether", "writing"],
-        "related": ["Rivals assistant"]
       },
       "rockigi": {
         "tags": ["Rivals of Aether", "mods I made"],
@@ -21,7 +48,7 @@
       },
       "b-33-tl": {
         "tags": ["Rivals of Aether", "mods I made"],
-        "related": ["rockigi"]
+        "related": []
       },
       "Yetispy": {
         "tags": ["Eternal Card Game", "tools I made"]
@@ -47,14 +74,14 @@
       },
       "thoughtbot": {
         "tags": ["blog", "tools"],
-        "related": ["thoughts.toren.dev"]
+        "related": []
       },
       "Tabletop teamfight": {
         "tags": ["board games", "games I made"],
         "related": ["tactics.toren.dev"]
       },
       "tactics.toren.dev": {
-        "related": ["Tabletop teamfight"]
+        "related": []
       },
       "ThirdTime.toren.dev": {
         "tags": ["tools I made"]
@@ -63,15 +90,13 @@
         "tags": ["blog", "board games", "game ai"]
       },
       "lindholm": {
-        "tags": ["rip", "overwatch"]
+        "tags": ["rip", "overwatch", "tools I made"]
       },
       "llm social deduction game play": {
         "tags": ["experimental", "llms", "game ai"],
-        "related": ["universal board game ai"]
       },
       "universal board game ai": {
         "tags": ["experimental", "game ai"],
-        "related": ["llm social deduction game play"]
       }
     }
   };
