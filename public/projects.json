@@ -1,0 +1,70 @@
+{
+  "projects": {
+    "Rivals assistant": {
+      "tags": ["Rivals of Aether", "tools I made"],
+      "related": ["Rivals lib"]
+    },
+    "Rivals lib": {
+      "tags": ["Rivals of Aether", "writing"],
+      "related": ["Rivals assistant"]
+    },
+    "rockigi": {
+      "tags": ["Rivals of Aether", "mods I made"],
+      "related": ["b-33-tl"]
+    },
+    "b-33-tl": {
+      "tags": ["Rivals of Aether", "mods I made"],
+      "related": ["rockigi"]
+    },
+    "Yetispy": {
+      "tags": ["Eternal Card Game", "tools I made"]
+    },
+    "IsEveryoneGone.com": {
+      "tags": ["Dumb lil thing"]
+    },
+    "ThingFight": {
+      "tags": ["Dumb lil thing"]
+    },
+    "typing.toren.dev": {
+      "tags": ["Dumb lil thing", "games I made"]
+    },
+    "toren.dev": {
+      "tags": ["me", "index"]
+    },
+    "tree.toren.dev": {
+      "tags": ["me", "index"]
+    },
+    "thoughts.toren.dev": {
+      "tags": ["me", "blog", "index"],
+      "related": ["thoughtbot"]
+    },
+    "thoughtbot": {
+      "tags": ["blog", "tools"],
+      "related": ["thoughts.toren.dev"]
+    },
+    "Tabletop teamfight": {
+      "tags": ["board games", "games I made"],
+      "related": ["tactics.toren.dev"]
+    },
+    "tactics.toren.dev": {
+      "related": ["Tabletop teamfight"]
+    },
+    "ThirdTime.toren.dev": {
+      "tags": ["tools I made"]
+    },
+    "board game ai blog posts": {
+      "tags": ["blog", "board games", "game ai"]
+    },
+    "lindholm": {
+      "tags": ["rip", "overwatch"]
+    },
+    "llm social deduction game play": {
+      "tags": ["experimental", "llms", "game ai"],
+      "related": ["universal board game ai"]
+    },
+    "universal board game ai": {
+      "tags": ["experimental", "game ai"],
+      "related": ["llm social deduction game play"]
+    }
+  }
+}
