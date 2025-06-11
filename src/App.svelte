@@ -250,8 +250,7 @@
 
 <style>
     main {
-        padding: 20px;
-        font-family: Arial, sans-serif;
+        height: 100%
     }
 
     .graph-container {
