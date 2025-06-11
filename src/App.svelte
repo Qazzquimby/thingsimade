@@ -143,7 +143,7 @@
         projects.forEach(project => {
             nodes.push({
                 id: makeId(project.name),
-                label: project,
+                label: project.name,
                 type: 'project',
                 color: {background: '#97c2fc', border: '#2b7ce9'},
                 shape: 'box'
@@ -205,9 +205,11 @@
         };
 
         const options = {
+            autoResize: true,
             nodes: {
                 font: {size: 14},
-                margin: 10
+                margin: 10,
+                size: 30,
             },
             edges: {
                 font: {size: 12},
@@ -216,18 +218,18 @@
                 }
             },
             physics: {
-                stabilization: {iterations: 200},
+                stabilization: true,
                 barnesHut: {
                     gravitationalConstant: -30000,
-                    centralGravity: 1,
-                    springLength: 200,
+                    centralGravity: 0.1,
+                    springLength: 100,
                     springConstant: 0.05,
-                    damping: 0.9
+                    damping: 0.1
                 }
             },
             interaction: {
                 hover: true,
-                selectConnectedEdges: false
+                selectConnectedEdges: true
             }
         };
 
