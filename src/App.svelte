@@ -146,7 +146,8 @@
                 label: project.name,
                 type: 'project',
                 color: {background: '#97c2fc', border: '#2b7ce9'},
-                shape: 'box'
+                shape: 'image',
+                image: `public/project_images/${project.image}`
             });
         });
 
