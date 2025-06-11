@@ -277,7 +277,7 @@
                 type: 'project',
                 color: {background: '#97c2fc', border: '#2b7ce9'},
                 shape: 'image',
-                image: `public/project_images/${project.image}`,
+                image: `project_images/${project.image}`,
                 size: 50,
                 mass: 2.5,
                 link: project.link
